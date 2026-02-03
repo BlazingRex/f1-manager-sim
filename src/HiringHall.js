@@ -10,6 +10,9 @@ export default function HiringHall() {
   const [hiredEngineerId, setHiredEngineerId] = useState(null);
   const [hiredPitCrewId, setHiredPitCrewId] = useState(null);
 
+  // Get or initialize budget from window bridge
+  const [budget, setBudget] = useState(() => (typeof window !== 'undefined' && window.budget) || Math.floor(800000 + Math.random() * 1400000));
+
   const engineers = useMemo(() => staffMarket.engineers ?? [], []);
   const pitCrews = useMemo(() => staffMarket.pitCrews ?? [], []);
 
@@ -17,7 +20,22 @@ export default function HiringHall() {
   if (typeof window !== 'undefined') {
     window.hiredEngineerId = hiredEngineerId;
     window.hiredPitCrewId = hiredPitCrewId;
+    window.budget = budget;
   }
+
+  const handleHireEngineer = (engineer) => {
+    if (budget >= engineer.cost) {
+      setHiredEngineerId(engineer.id);
+      setBudget((prev) => prev - engineer.cost);
+    }
+  };
+
+  const handleHirePitCrew = (pitCrew) => {
+    if (budget >= pitCrew.cost) {
+      setHiredPitCrewId(pitCrew.id);
+      setBudget((prev) => prev - pitCrew.cost);
+    }
+  };
 
   return (
     <div className="f1-dashboard">
@@ -25,6 +43,12 @@ export default function HiringHall() {
         <div className="topBarLeft">
           <div className="title">F1 Manager Sim</div>
           <div className="subtitle">Hiring Hall</div>
+        </div>
+        <div className="topBarRight">
+          <div className="data-panel topStat">
+            <div className="label">Budget</div>
+            <div className="stat-value">{formatMoney(budget)}</div>
+          </div>
         </div>
       </header>
 
@@ -44,11 +68,11 @@ export default function HiringHall() {
                     <button
                       type="button"
                       className="pit-btn"
-                      onClick={() => setHiredEngineerId(e.id)}
-                      disabled={isHired}
+                      onClick={() => handleHireEngineer(e)}
+                      disabled={isHired || budget < e.cost}
                       style={{ width: '100%', marginTop: 10 }}
                     >
-                      {isHired ? 'Hired' : 'Hire'}
+                      {isHired ? 'Hired' : budget < e.cost ? 'Too Expensive' : 'Hire'}
                     </button>
                   </div>
                 );
@@ -72,11 +96,11 @@ export default function HiringHall() {
                     <button
                       type="button"
                       className="pit-btn"
-                      onClick={() => setHiredPitCrewId(p.id)}
-                      disabled={isHired}
+                      onClick={() => handleHirePitCrew(p)}
+                      disabled={isHired || budget < p.cost}
                       style={{ width: '100%', marginTop: 10 }}
                     >
-                      {isHired ? 'Hired' : 'Hire'}
+                      {isHired ? 'Hired' : budget < p.cost ? 'Too Expensive' : 'Hire'}
                     </button>
                   </div>
                 );

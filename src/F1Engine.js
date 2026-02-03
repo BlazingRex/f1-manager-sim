@@ -21,28 +21,6 @@ const AI_DRIVER_NAMES = [
   'T. Rocket',
 ];
 
-function pickRadioLine(style, intent) {
-  const aggressivePit = ['Copy, box box!', 'Box this lap. Copy.', "I'm coming in now!", 'Push in, box box.'];
-  const conservativePit = ['Box box, understood.', 'Copy. In this lap.', "Okay, we'll box.", 'Roger, pitting.'];
-
-  const aggressiveStay = ['Negative. Staying out!', 'No, we stay out—push!', 'We can survive on these.', 'Hold position, staying out.'];
-  const conservativeStay = ['Negative, staying out for now.', 'We stay out, tyres feel okay.', 'Holding track position. Staying out.', 'Copy, staying out.'];
-
-  const wetCall = ['Track is wet—box for wets!', 'It’s coming down hard—wets now!', 'Grip is gone. We need wets.', 'This is wet, box for wets.'];
-  const slickCall = ['Track is drying—box for slicks!', 'We need slicks now.', 'Dry line is here—slicks.', 'Going back to slicks.'];
-
-  if (intent === 'PIT_FOR_WETS') return wetCall[Math.floor(Math.random() * wetCall.length)];
-  if (intent === 'PIT_FOR_SLICKS') return slickCall[Math.floor(Math.random() * slickCall.length)];
-
-  if (intent === 'PIT') {
-    const pool = style === 'Aggressive' ? aggressivePit : conservativePit;
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
-
-  const pool = style === 'Aggressive' ? aggressiveStay : conservativeStay;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
 function clampProgress(value) {
   const num = Number(value);
   if (!Number.isFinite(num)) return 0;
@@ -64,11 +42,14 @@ function createOpponents() {
     { name: 'Amber Apex', color: '#ffaa00' },
   ];
 
+  // Wider random range for more variable difficulty per run
+  const baseSpeedMultiplier = 0.8 + Math.random() * 0.9; // 0.8 to 1.7
+
   return seeds.map((s, idx) => ({
     ...s,
     teamName: s.name,
     name: AI_DRIVER_NAMES[idx] ?? `AI ${idx + 1}`,
-    baseSpeed: 2.0 + Math.random() * 1.8,
+    baseSpeed: (1.8 + Math.random() * 2.4) * baseSpeedMultiplier, // 1.8–4.2 scaled by multiplier
     currentProgress: clampProgress(idx * 10),
     tireType: 'Slicks',
     strategyType: Math.random() < 0.4 ? 'Aggressive' : 'Conservative',
@@ -110,6 +91,9 @@ export default function F1Engine() {
     pitCrew: hiredPitCrewId ? staffMarket.pitCrews.find(p => p.id === hiredPitCrewId) ?? { name: 'Apex Pit Crew', tier: 'Pro' } : { name: 'Apex Pit Crew', tier: 'Pro' },
   };
 
+  // Random budget per run
+  const [budget, setBudget] = useState(() => (typeof window !== 'undefined' && window.budget) || Math.floor(800000 + Math.random() * 1400000)); // $800k–$2.2M
+
   const [fuel, setFuel] = useState(100);
   const [tireHealth, setTireHealth] = useState(100);
   const [selectedTire, setSelectedTire] = useState('Soft');
@@ -147,6 +131,9 @@ export default function F1Engine() {
     setPitRequested(false);
     setRaceFinished(false);
     setShowResultsPortal(false);
+    const newBudget = Math.floor(800000 + Math.random() * 1400000);
+    setBudget(newBudget);
+    if (typeof window !== 'undefined') window.budget = newBudget;
     setFuel(100);
     setTireHealth(100);
     setSelectedTire('Soft');
@@ -162,18 +149,6 @@ export default function F1Engine() {
     setDnfReason(null);
     setRadioAlert(null);
   }, []);
-
-  const currentWeather = rainIntensity > 70 ? 'Heavy Rain' : rainIntensity > 40 ? 'Rainy' : 'Clear';
-
-  const isWrongTireForWeather = useCallback(
-    (weather, tire) => {
-      if (weather === 'Clear') return tire === 'Inter' || tire === 'Wet';
-      if (weather === 'Rainy') return tire === 'Soft' || tire === 'Medium' || tire === 'Hard';
-      if (weather === 'Heavy Rain') return tire === 'Soft' || tire === 'Medium' || tire === 'Hard';
-      return false;
-    },
-    []
-  );
 
   const triggerPitStop = useCallback(() => {
     setIsPitting(true);
@@ -200,18 +175,47 @@ export default function F1Engine() {
       return;
     }
 
+    // Random DNF chance (mechanical failure)
+    if (Math.random() < 0.004) {
+      setIsRunning(false);
+      setRaceFinished(true);
+      setShowResultsPortal(true);
+      setDnfReason('Mechanical failure');
+      return;
+    }
+
     const baseWear = wearRates[selectedTire] ?? 5;
     const legendaryEngineerWearMultiplier = week2Staff.engineer.tier === 'Legendary' ? 0.8 : 1;
     const wearThisLap = baseWear * legendaryEngineerWearMultiplier;
     const newWear = Math.max(0, tireHealth - wearThisLap);
     const newFuel = Math.max(0, fuel - 2.2);
 
-    const baseLapTime = 90;
-    const tirePenalty = newWear < 30 ? 2.5 : newWear < 70 ? 1.0 : 0;
-    const weatherPenalty = isWrongTireForWeather(currentWeather, selectedTire) ? 6 : 0;
-    const lapTimeThisLap = baseLapTime + tirePenalty + weatherPenalty;
+    // Tire and weather effects on lap time
+    let tirePenalty = 0;
+    if (selectedTire === 'Soft') {
+      tirePenalty = newWear < 20 ? 4 : newWear < 50 ? 1.5 : 0;
+    } else if (selectedTire === 'Medium') {
+      tirePenalty = newWear < 15 ? 2 : 0;
+    } else if (selectedTire === 'Hard') {
+      tirePenalty = 0; // durable
+    } else if (selectedTire === 'Inter') {
+      tirePenalty = rainIntensity > 30 ? -1 : 2; // good in damp, bad in dry
+    } else if (selectedTire === 'Wet') {
+      tirePenalty = rainIntensity > 60 ? -3 : rainIntensity > 30 ? -1 : 5; // great in heavy rain, terrible in dry
+    }
 
-    const playerDelta = 5.0;
+    const baseLapTime = 90;
+    const lapTimeThisLap = baseLapTime + tirePenalty;
+
+    // Player speed delta affected by tire choice and conditions
+    let playerDelta = 4.2;
+    if (selectedTire === 'Soft') playerDelta += 0.4;
+    if (selectedTire === 'Hard') playerDelta -= 0.3;
+    if (selectedTire === 'Wet' && rainIntensity > 60) playerDelta += 0.6;
+    if (selectedTire === 'Wet' && rainIntensity < 30) playerDelta -= 1.2;
+    if (selectedTire === 'Inter' && rainIntensity > 30 && rainIntensity <= 60) playerDelta += 0.3;
+    if (selectedTire === 'Inter' && rainIntensity < 20) playerDelta -= 0.8;
+
     setPlayerProgress((p) => clampProgress(p + playerDelta));
     setPlayerTotalDistanceTravelled((d) => (Number(d) || 0) + playerDelta);
 
@@ -221,9 +225,6 @@ export default function F1Engine() {
       if (prev == null) return lapTimeThisLap;
       return Math.min(prev, lapTimeThisLap);
     });
-    if (isWrongTireForWeather(currentWeather, selectedTire)) {
-      setWrongTireLaps((prev) => prev + 1);
-    }
 
     if (Math.random() > 0.9) {
       setRainIntensity(Math.floor(Math.random() * 100));
@@ -246,11 +247,16 @@ export default function F1Engine() {
           pitted = true;
         }
 
-        if (pitted || (decision === 'STAY' && Math.random() < 0.15)) {
-          const intent = pitted ? decision : 'STAY';
-          const line = pickRadioLine(ai.strategyType, intent);
-          const key = `ai-radio-${lap}-${ai.name}-${intent}`;
-          setRadioAlert({ key, message: `${ai.name}: ${line}`, ts: Date.now() });
+        // AI tire penalties
+        let aiTirePenalty = 0;
+        if (tireType === 'Soft') {
+          aiTirePenalty = 2;
+        } else if (tireType === 'Hard') {
+          aiTirePenalty = -0.5;
+        } else if (tireType === 'Wet') {
+          aiTirePenalty = rainIntensity > 60 ? -3 : rainIntensity < 30 ? 5 : 0;
+        } else if (tireType === 'Inter') {
+          aiTirePenalty = rainIntensity > 30 && rainIntensity <= 60 ? -1 : rainIntensity < 20 ? 3 : 0;
         }
 
         const wrongTirePenalty =
@@ -261,7 +267,12 @@ export default function F1Engine() {
               : 0;
 
         const pitPenalty = pitted ? 6.5 : 0;
-        const aiLapTime = Math.max(60, aiBaseLap + wrongTirePenalty + pitPenalty + fluctuation);
+        const aiLapTime = Math.max(60, aiBaseLap + wrongTirePenalty + pitPenalty + fluctuation + aiTirePenalty);
+
+        // Random AI DNF
+        if (Math.random() < 0.003) {
+          return { ...ai, dnf: true, dnfReason: 'Mechanical failure' };
+        }
 
         const distanceDelta = baseSpeed * 1.4;
         const nextProgress = clampProgress(ai.currentProgress + distanceDelta);
@@ -276,7 +287,7 @@ export default function F1Engine() {
           gapToPlayerSec: nextGap,
           currentProgress: nextProgress,
         };
-      })
+      }).filter(ai => !ai.dnf)
     );
 
     if (pitRequested) {
@@ -289,9 +300,7 @@ export default function F1Engine() {
       if (newWear <= 0) setDnfReason('Puncture / 0% tires');
     }
   }, [
-    currentWeather,
     fuel,
-    isWrongTireForWeather,
     lap,
     pitRequested,
     rainIntensity,
@@ -513,8 +522,13 @@ export default function F1Engine() {
 
         <div className="engineLayout">
           <aside className="data-panel staffSidebar">
-            <div className="panelTitle">Week 2 Staff</div>
+            <div className="panelTitle">Team</div>
             <div className="panelContent">
+              <div className="sidebarRow">
+                <div className="label">Budget</div>
+                <div className="stat-value">${(budget || 0).toLocaleString()}</div>
+              </div>
+
               <div className="sidebarRow">
                 <div className="label">Engineer</div>
                 <div className="stat-value">{week2Staff.engineer.name}</div>
