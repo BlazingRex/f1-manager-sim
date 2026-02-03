@@ -13,6 +13,12 @@ export default function HiringHall() {
   const engineers = useMemo(() => staffMarket.engineers ?? [], []);
   const pitCrews = useMemo(() => staffMarket.pitCrews ?? [], []);
 
+  // Persist to F1Engine via simple global/state bridge
+  if (typeof window !== 'undefined') {
+    window.hiredEngineerId = hiredEngineerId;
+    window.hiredPitCrewId = hiredPitCrewId;
+  }
+
   return (
     <div className="f1-dashboard">
       <header className="dashboardTopBar">

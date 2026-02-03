@@ -6,20 +6,19 @@ import LiveLeaderboard from './LiveLeaderboard';
 import RaceMap from './RaceMap';
 import PodiumScreen from './PodiumScreen';
 import RadioAlert from './RadioAlert';
+import { staffMarket } from './staffData';
 
 const wearRates = { Soft: 8, Medium: 5, Hard: 3, Inter: 4, Wet: 4 };
 
 const AI_DRIVER_NAMES = [
-  'V. Bottas',
-  'C. Leclerc',
-  'L. Hamilton',
-  'M. Verstappen',
-  'F. Alonso',
-  'C. Sainz',
-  'G. Russell',
-  'L. Norris',
-  'O. Piastri',
-  'S. Perez',
+  'J. Speedster',
+  'M. Vortex',
+  'L. Thunder',
+  'A. Nitro',
+  'K. Flash',
+  'R. Bolt',
+  'S. Blaze',
+  'T. Rocket',
 ];
 
 function pickRadioLine(style, intent) {
@@ -63,15 +62,13 @@ function createOpponents() {
     { name: 'Pulse Performance', color: '#38bdf8' },
     { name: 'Silver Arrow', color: '#e5e7eb' },
     { name: 'Amber Apex', color: '#ffaa00' },
-    { name: 'Vortex Velocity', color: '#fb7185' },
-    { name: 'Neon Nova', color: '#84cc16' },
   ];
 
   return seeds.map((s, idx) => ({
     ...s,
     teamName: s.name,
     name: AI_DRIVER_NAMES[idx] ?? `AI ${idx + 1}`,
-    baseSpeed: 3 + Math.random() * 4,
+    baseSpeed: 2.0 + Math.random() * 1.8,
     currentProgress: clampProgress(idx * 10),
     tireType: 'Slicks',
     strategyType: Math.random() < 0.4 ? 'Aggressive' : 'Conservative',
@@ -105,10 +102,13 @@ export default function F1Engine() {
   const [isPitting, setIsPitting] = useState(false);
   const [pitRequested, setPitRequested] = useState(false);
 
-  const [week2Staff] = useState({
-    engineer: { name: "Ava Stone", tier: 'Legendary' },
-    pitCrew: { name: 'Apex Pit Crew', tier: 'Pro' },
-  });
+  const hiredEngineerId = (typeof window !== 'undefined' && window.hiredEngineerId) || null;
+  const hiredPitCrewId = (typeof window !== 'undefined' && window.hiredPitCrewId) || null;
+
+  const week2Staff = {
+    engineer: hiredEngineerId ? staffMarket.engineers.find(e => e.id === hiredEngineerId) ?? { name: "Ava Stone", tier: 'Legendary' } : { name: "Ava Stone", tier: 'Legendary' },
+    pitCrew: hiredPitCrewId ? staffMarket.pitCrews.find(p => p.id === hiredPitCrewId) ?? { name: 'Apex Pit Crew', tier: 'Pro' } : { name: 'Apex Pit Crew', tier: 'Pro' },
+  };
 
   const [fuel, setFuel] = useState(100);
   const [tireHealth, setTireHealth] = useState(100);
@@ -128,6 +128,8 @@ export default function F1Engine() {
   const [wrongTireLaps, setWrongTireLaps] = useState(0);
   const [dnfReason, setDnfReason] = useState(null);
   const [radioAlert, setRadioAlert] = useState(null);
+  const [showResultsPortal, setShowResultsPortal] = useState(false);
+  const [raceFinished, setRaceFinished] = useState(false);
 
   const pitTimeoutRef = useRef(null);
 
@@ -143,23 +145,15 @@ export default function F1Engine() {
     setIsRunning(false);
     setIsPitting(false);
     setPitRequested(false);
+    setRaceFinished(false);
+    setShowResultsPortal(false);
     setFuel(100);
     setTireHealth(100);
     setSelectedTire('Soft');
     setRainIntensity(0);
     setPlayerProgress(0);
     setPlayerTotalDistanceTravelled(0);
-    setOpponents((prev) =>
-      prev.map((o, idx) => ({
-        ...o,
-        currentProgress: clampProgress(idx * 10),
-        tireType: 'Slicks',
-        gapToPlayerSec: 0,
-        lastLapTimeSec: 0,
-        totalRaceTime: 0,
-        totalDistanceTravelled: 0,
-      }))
-    );
+    setOpponents(createOpponents());
     setLapTimes([]);
     setTotalTimeSec(0);
     setBestLapSec(null);
@@ -199,6 +193,8 @@ export default function F1Engine() {
   const processLap = useCallback(() => {
     if (lap >= 50 || fuel <= 0 || tireHealth <= 0) {
       setIsRunning(false);
+      setRaceFinished(true);
+      setShowResultsPortal(true);
       if (fuel <= 0) setDnfReason('Out of fuel');
       if (tireHealth <= 0) setDnfReason('Puncture / 0% tires');
       return;
@@ -215,7 +211,7 @@ export default function F1Engine() {
     const weatherPenalty = isWrongTireForWeather(currentWeather, selectedTire) ? 6 : 0;
     const lapTimeThisLap = baseLapTime + tirePenalty + weatherPenalty;
 
-    const playerDelta = 4.2;
+    const playerDelta = 5.0;
     setPlayerProgress((p) => clampProgress(p + playerDelta));
     setPlayerTotalDistanceTravelled((d) => (Number(d) || 0) + playerDelta);
 
@@ -259,15 +255,15 @@ export default function F1Engine() {
 
         const wrongTirePenalty =
           rainIntensity > 50 && tireType === 'Slicks'
-            ? 10
+            ? 12
             : rainIntensity < 10 && tireType !== 'Slicks'
-              ? 5
+              ? 6
               : 0;
 
-        const pitPenalty = pitted ? 5 : 0;
+        const pitPenalty = pitted ? 6.5 : 0;
         const aiLapTime = Math.max(60, aiBaseLap + wrongTirePenalty + pitPenalty + fluctuation);
 
-        const distanceDelta = baseSpeed * 1.7;
+        const distanceDelta = baseSpeed * 1.4;
         const nextProgress = clampProgress(ai.currentProgress + distanceDelta);
         const nextGap = (Number(ai.gapToPlayerSec) || 0) + (aiLapTime - lapTimeThisLap);
 
@@ -329,14 +325,13 @@ export default function F1Engine() {
         ? 'tireValueOrange'
         : 'tireValueRedFlash';
 
-  const raceFinished = lap >= 50 || Boolean(dnfReason);
-
   const carsForMap = [
-    { id: 'Player', progress: playerProgress, color: '#39ff14' },
+    { id: 'Player', progress: playerProgress, color: '#39ff14', teamName: 'Player' },
     ...opponents.map((o, idx) => ({
       id: `AI${idx + 1}`,
       progress: o.currentProgress,
       color: o.color,
+      teamName: o.teamName,
     })),
   ];
 
@@ -369,8 +364,109 @@ export default function F1Engine() {
 
   const playerInTop3 = top3.some((c) => c.id === 'Player');
 
+  // Prepare final standings sorted by total distance (desc), then total time (asc)
+  const finalStandings = raceFinished
+    ? (() => {
+        const sorted = carsForLeaderboard
+          .slice()
+          .sort((a, b) => {
+            const distDiff = (Number(b.totalDistanceTravelled) || 0) - (Number(a.totalDistanceTravelled) || 0);
+            if (distDiff !== 0) return distDiff;
+            return (Number(a.totalRaceTime) || 0) - (Number(b.totalRaceTime) || 0);
+          });
+        const winnerTime = sorted[0]?.totalRaceTime ?? 0;
+        return sorted.map((car, idx) => {
+          const interval = idx === 0 ? 0 : (Number(car.totalRaceTime) || 0) - winnerTime;
+          return { ...car, position: idx + 1, interval };
+        });
+      })()
+    : [];
+
   return (
-    <div className="f1-dashboard">
+    <>
+      {showResultsPortal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0, 0, 0, 0.96)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontFamily: 'monospace',
+          }}
+        >
+          <h2 style={{ color: '#39ff14', fontSize: '2.5rem', marginBottom: '1rem' }}>Final Standings</h2>
+          <table
+            style={{
+              borderCollapse: 'collapse',
+              width: '600px',
+              maxWidth: '90vw',
+              fontSize: '1.1rem',
+            }}
+          >
+            <thead>
+              <tr style={{ borderBottom: '2px solid #39ff14' }}>
+                <th style={{ padding: '0.75rem', textAlign: 'left' }}>Pos</th>
+                <th style={{ padding: '0.75rem', textAlign: 'left' }}>Driver</th>
+                <th style={{ padding: '0.75rem', textAlign: 'left' }}>Total Time</th>
+                <th style={{ padding: '0.75rem', textAlign: 'left' }}>Interval</th>
+              </tr>
+            </thead>
+            <tbody>
+              {finalStandings.map((car) => (
+                <tr
+                  key={car.id}
+                  style={{
+                    borderBottom: '1px solid #333',
+                    backgroundColor: car.id === 'Player' ? '#39ff14' : 'transparent',
+                    color: car.id === 'Player' ? '#000' : '#fff',
+                  }}
+                >
+                  <td style={{ padding: '0.75rem' }}>
+                    {car.position}
+                    {car.id === 'Player' && (
+                      <span style={{ marginLeft: '0.5rem', fontWeight: 'bold' }}>
+                        (YOU FINISHED P{car.position})
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '0.75rem' }}>{car.name}</td>
+                  <td style={{ padding: '0.75rem' }}>{(Number(car.totalRaceTime) || 0).toFixed(1)}s</td>
+                  <td style={{ padding: '0.75rem' }}>
+                    {car.interval === 0 ? '—' : `+${car.interval.toFixed(1)}s`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button
+            type="button"
+            onClick={() => setShowResultsPortal(false)}
+            style={{
+              marginTop: '2rem',
+              padding: '0.75rem 2rem',
+              fontSize: '1rem',
+              background: '#39ff14',
+              color: '#000',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+            }}
+          >
+            Close Results
+          </button>
+        </div>
+      )}
+
+      <div className="f1-dashboard">
       <RadioAlert alert={radioAlert} />
       <header className="dashboardTopBar">
         <div className="topBarLeft">
@@ -548,5 +644,6 @@ export default function F1Engine() {
         </div>
       </main>
     </div>
+      </>
   );
 }
