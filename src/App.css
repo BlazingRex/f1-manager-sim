@@ -716,6 +716,97 @@
   will-change: transform;
 }
 
+.leaderboardRow[data-flash='1'] {
+  animation: overtakeFlash 0.5s ease-out;
+}
+
+@keyframes overtakeFlash {
+  0% {
+    background: rgba(255, 255, 255, 0.95);
+    color: #000;
+    box-shadow: 0 0 26px rgba(255, 255, 255, 0.55);
+  }
+  100% {
+    background: rgba(0, 0, 0, 0.18);
+    color: inherit;
+    box-shadow: none;
+  }
+}
+
+.f1-dashboard {
+  position: relative;
+}
+
+.f1-dashboard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.03) 0px,
+      rgba(255, 255, 255, 0.03) 1px,
+      rgba(0, 0, 0, 0) 3px,
+      rgba(0, 0, 0, 0) 6px
+    );
+  opacity: 0.22;
+  mix-blend-mode: overlay;
+}
+
+.f1-dashboard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.02);
+  animation: crtFlicker 3.2s infinite;
+}
+
+@keyframes crtFlicker {
+  0% {
+    opacity: 0.05;
+  }
+  50% {
+    opacity: 0.12;
+  }
+  51% {
+    opacity: 0.03;
+  }
+  100% {
+    opacity: 0.08;
+  }
+}
+
+.panelTitle,
+.title,
+.subtitle {
+  animation: neonTextFlicker 6.5s infinite;
+}
+
+@keyframes neonTextFlicker {
+  0% {
+    opacity: 0.98;
+  }
+  92% {
+    opacity: 0.98;
+  }
+  93% {
+    opacity: 0.86;
+  }
+  94% {
+    opacity: 0.98;
+  }
+  97% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0.98;
+  }
+}
+
 .podiumScreen {
   position: relative;
   overflow: hidden;
@@ -852,4 +943,94 @@
   stroke: rgba(0, 0, 0, 0.7);
   stroke-width: 3px;
   text-shadow: 0 0 10px rgba(57, 255, 20, 0.22);
+}
+
+.appTopNav {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.45);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(10px);
+}
+
+.appNavBtn {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 1000;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.appNavBtnActive {
+  border-color: rgba(57, 255, 20, 0.35);
+  box-shadow: 0 0 16px rgba(57, 255, 20, 0.18), inset 0 0 14px rgba(57, 255, 20, 0.08);
+  color: rgba(57, 255, 20, 0.95);
+}
+
+.tab-container {
+  display: flex;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 10px;
+  border-bottom: 2px solid var(--neon-blue);
+  margin-bottom: 20px;
+}
+
+.tab-button {
+  background: transparent;
+  color: #666;
+  border: none;
+  font-family: 'Orbitron', sans-serif;
+  padding: 10px 30px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.tab-button.active {
+  color: var(--neon-blue);
+  text-shadow: 0 0 10px var(--neon-blue);
+  border-bottom: 2px solid var(--neon-blue);
+}
+
+.hiringGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .hiringGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hiringCard {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.22);
+  padding: 12px;
+}
+
+.hiringCardActive {
+  border-color: rgba(57, 255, 20, 0.3);
+  box-shadow: 0 0 18px rgba(57, 255, 20, 0.12);
+}
+
+.hiringName {
+  font-weight: 1000;
+  margin-bottom: 6px;
+}
+
+.hiringMeta {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 2px;
 }

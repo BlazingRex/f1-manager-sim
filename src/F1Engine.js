@@ -5,8 +5,44 @@ import RaceResults from './RaceResults';
 import LiveLeaderboard from './LiveLeaderboard';
 import RaceMap from './RaceMap';
 import PodiumScreen from './PodiumScreen';
+import RadioAlert from './RadioAlert';
 
 const wearRates = { Soft: 8, Medium: 5, Hard: 3, Inter: 4, Wet: 4 };
+
+const AI_DRIVER_NAMES = [
+  'V. Bottas',
+  'C. Leclerc',
+  'L. Hamilton',
+  'M. Verstappen',
+  'F. Alonso',
+  'C. Sainz',
+  'G. Russell',
+  'L. Norris',
+  'O. Piastri',
+  'S. Perez',
+];
+
+function pickRadioLine(style, intent) {
+  const aggressivePit = ['Copy, box box!', 'Box this lap. Copy.', "I'm coming in now!", 'Push in, box box.'];
+  const conservativePit = ['Box box, understood.', 'Copy. In this lap.', "Okay, we'll box.", 'Roger, pitting.'];
+
+  const aggressiveStay = ['Negative. Staying out!', 'No, we stay out—push!', 'We can survive on these.', 'Hold position, staying out.'];
+  const conservativeStay = ['Negative, staying out for now.', 'We stay out, tyres feel okay.', 'Holding track position. Staying out.', 'Copy, staying out.'];
+
+  const wetCall = ['Track is wet—box for wets!', 'It’s coming down hard—wets now!', 'Grip is gone. We need wets.', 'This is wet, box for wets.'];
+  const slickCall = ['Track is drying—box for slicks!', 'We need slicks now.', 'Dry line is here—slicks.', 'Going back to slicks.'];
+
+  if (intent === 'PIT_FOR_WETS') return wetCall[Math.floor(Math.random() * wetCall.length)];
+  if (intent === 'PIT_FOR_SLICKS') return slickCall[Math.floor(Math.random() * slickCall.length)];
+
+  if (intent === 'PIT') {
+    const pool = style === 'Aggressive' ? aggressivePit : conservativePit;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  const pool = style === 'Aggressive' ? aggressiveStay : conservativeStay;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 function clampProgress(value) {
   const num = Number(value);
@@ -33,6 +69,8 @@ function createOpponents() {
 
   return seeds.map((s, idx) => ({
     ...s,
+    teamName: s.name,
+    name: AI_DRIVER_NAMES[idx] ?? `AI ${idx + 1}`,
     baseSpeed: 3 + Math.random() * 4,
     currentProgress: clampProgress(idx * 10),
     tireType: 'Slicks',
@@ -89,6 +127,7 @@ export default function F1Engine() {
   const [totalPitStops, setTotalPitStops] = useState(0);
   const [wrongTireLaps, setWrongTireLaps] = useState(0);
   const [dnfReason, setDnfReason] = useState(null);
+  const [radioAlert, setRadioAlert] = useState(null);
 
   const pitTimeoutRef = useRef(null);
 
@@ -127,6 +166,7 @@ export default function F1Engine() {
     setTotalPitStops(0);
     setWrongTireLaps(0);
     setDnfReason(null);
+    setRadioAlert(null);
   }, []);
 
   const currentWeather = rainIntensity > 70 ? 'Heavy Rain' : rainIntensity > 40 ? 'Rainy' : 'Clear';
@@ -208,6 +248,13 @@ export default function F1Engine() {
         } else if (decision === 'PIT_FOR_SLICKS') {
           tireType = 'Slicks';
           pitted = true;
+        }
+
+        if (pitted || (decision === 'STAY' && Math.random() < 0.15)) {
+          const intent = pitted ? decision : 'STAY';
+          const line = pickRadioLine(ai.strategyType, intent);
+          const key = `ai-radio-${lap}-${ai.name}-${intent}`;
+          setRadioAlert({ key, message: `${ai.name}: ${line}`, ts: Date.now() });
         }
 
         const wrongTirePenalty =
@@ -324,6 +371,7 @@ export default function F1Engine() {
 
   return (
     <div className="f1-dashboard">
+      <RadioAlert alert={radioAlert} />
       <header className="dashboardTopBar">
         <div className="topBarLeft">
           <div className="title">F1 Manager Sim</div>

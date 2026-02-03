@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 function getTireIconLabel(tireType) {
   if (tireType === 'Wets') return 'W';
@@ -23,6 +23,29 @@ export default function LiveLeaderboard({ cars }) {
 
   const rowRefs = useRef(new Map());
   const prevRects = useRef(new Map());
+
+  const [playerFlash, setPlayerFlash] = useState(false);
+  const prevPlayerPosRef = useRef(null);
+  const flashTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    const playerPos = sorted.findIndex((c) => c.id === 'Player');
+    if (playerPos === -1) return;
+
+    const prevPos = prevPlayerPosRef.current;
+    prevPlayerPosRef.current = playerPos;
+    if (prevPos == null || prevPos === playerPos) return;
+
+    setPlayerFlash(true);
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    flashTimeoutRef.current = setTimeout(() => setPlayerFlash(false), 500);
+  }, [sorted]);
+
+  useEffect(() => {
+    return () => {
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const moves = [];
@@ -73,6 +96,7 @@ export default function LiveLeaderboard({ cars }) {
               rowRefs.current.set(c.id, el);
             }}
             className={`leaderboardRow ${c.id === 'Player' ? 'leaderboardPlayer' : ''}`}
+            data-flash={c.id === 'Player' && playerFlash ? '1' : '0'}
           >
             <div className="leaderboardPos">{idx + 1}</div>
             <div className="leaderboardName" style={{ color: c.color }}>
