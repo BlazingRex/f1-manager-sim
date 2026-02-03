@@ -1,0 +1,76 @@
+/* Dashboard.css */
+:root {
+  --carbon-bg: #0a0a0b;
+  --panel-bg: #141417;
+  --neon-red: #ff003c;
+  --neon-green: #39ff14;
+  --neon-blue: #00f2ff;
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+.f1-dashboard {
+  background-color: var(--carbon-bg);
+  background-image: linear-gradient(45deg, #000 25%, transparent 25%),
+    linear-gradient(-45deg, #000 25%, transparent 25%);
+  background-size: 4px 4px; /* Subtle carbon fiber texture */
+  color: #e0e0e0;
+  font-family: 'Orbitron', sans-serif; /* A futuristic font */
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.data-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--glass-border);
+  border-left: 4px solid var(--neon-blue);
+  padding: 15px;
+  border-radius: 4px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+}
+
+/* Tire health bar colors */
+.health-bar-inner {
+  height: 100%;
+  transition: width 0.5s ease-in-out;
+}
+
+.green-zone {
+  background: var(--neon-green);
+  box-shadow: 0 0 10px var(--neon-green);
+}
+.orange-zone {
+  background: #ffaa00;
+  box-shadow: 0 0 10px #ffaa00;
+}
+.red-zone {
+  background: var(--neon-red);
+  box-shadow: 0 0 10px var(--neon-red);
+}
+
+button.pit-btn {
+  background: transparent;
+  border: 2px solid var(--neon-red);
+  color: var(--neon-red);
+  padding: 10px 20px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button.pit-btn:hover {
+  background: var(--neon-red);
+  color: white;
+  box-shadow: 0 0 20px var(--neon-red);
+}
